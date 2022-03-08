@@ -8,6 +8,43 @@ use Alura\Leilao\Service\Encerrador;
 use DateTimeImmutable;
 use PHPUnit\Framework\TestCase;
 
+/**
+ * Cria um imitador (mock) da classe LeilaoDao
+ * para não acessar o banco de dados, e sim uma 
+ * imitação da tabela de leilões (private $leiloes).
+ * Desta forma, apenas os métodos do serviço são testados.
+ */
+class LeilaoDaoMock extends LeilaoDao
+{
+	// Imita a tabela de leilões
+	private $leiloes = [];
+
+	// Imita o método "salva" de LeilaoDao
+	public function salva(Leilao $leilao): void
+	{
+		$this->leiloes[] = $leilao;
+	}
+
+	// Imita o método "recuperarFinalizados" de LeilaoDao
+	public function recuperarFinalizados(): array
+	{
+		return array_filter($this->leiloes, function (Leilao $leilao) {
+			return $leilao->estaFinalizado();
+		});
+	}
+
+	// Imita o método "recuperarNaoFinalizados" de LeilaoDao
+	public function recuperarNaoFinalizados(): array
+	{
+		return array_filter($this->leiloes, function (Leilao $leilao) {
+			return !$leilao->estaFinalizado();
+		});
+	}
+
+	// Imita o método "atualiza" de LeilaoDao
+	public function atualiza(Leilao $leilao) {}
+}
+
 class EncerradorTest extends TestCase
 {
 	public function testLeiloesComMaisDeUmaSemanaDevemSerEncerrados()
@@ -25,12 +62,12 @@ class EncerradorTest extends TestCase
 		);
 
 		// Salva os leilões
-		$leilaoDAO = new LeilaoDao();
+		$leilaoDAO = new LeilaoDaoMock();
 		$leilaoDAO->salva($leilao1);
 		$leilaoDAO->salva($leilao2);
 
 		// Encerra os leilões
-		$encerrador = new Encerrador();
+		$encerrador = new Encerrador($leilaoDAO);
 		$encerrador->encerra();
 
 		// Busca os leilões finalizados
