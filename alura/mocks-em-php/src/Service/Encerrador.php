@@ -21,7 +21,6 @@ class Encerrador
 
     public function encerra()
     {
-        $dao = new LeilaoDao();
         $leiloes = $this->dao->recuperarNaoFinalizados();
 
         foreach ($leiloes as $leilao) {
