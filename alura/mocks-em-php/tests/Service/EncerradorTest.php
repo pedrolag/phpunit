@@ -8,43 +8,6 @@ use Alura\Leilao\Service\Encerrador;
 use DateTimeImmutable;
 use PHPUnit\Framework\TestCase;
 
-/**
- * Cria um imitador (mock) da classe LeilaoDao
- * para não acessar o banco de dados, e sim uma 
- * imitação da tabela de leilões (private $leiloes).
- * Desta forma, apenas os métodos do serviço são testados.
- */
-class LeilaoDaoMock extends LeilaoDao
-{
-	// Imita a tabela de leilões
-	private $leiloes = [];
-
-	// Imita o método "salva" de LeilaoDao
-	public function salva(Leilao $leilao): void
-	{
-		$this->leiloes[] = $leilao;
-	}
-
-	// Imita o método "recuperarFinalizados" de LeilaoDao
-	public function recuperarFinalizados(): array
-	{
-		return array_filter($this->leiloes, function (Leilao $leilao) {
-			return $leilao->estaFinalizado();
-		});
-	}
-
-	// Imita o método "recuperarNaoFinalizados" de LeilaoDao
-	public function recuperarNaoFinalizados(): array
-	{
-		return array_filter($this->leiloes, function (Leilao $leilao) {
-			return !$leilao->estaFinalizado();
-		});
-	}
-
-	// Imita o método "atualiza" de LeilaoDao
-	public function atualiza(Leilao $leilao) {}
-}
-
 class EncerradorTest extends TestCase
 {
 	public function testLeiloesComMaisDeUmaSemanaDevemSerEncerrados()
@@ -61,27 +24,36 @@ class EncerradorTest extends TestCase
 			new \DateTimeImmutable('10 days ago')
 		);
 
-		// Salva os leilões
-		$leilaoDAO = new LeilaoDaoMock();
-		$leilaoDAO->salva($leilao1);
-		$leilaoDAO->salva($leilao2);
+		// Cria um mock da classe LeilaoDao
+		$leilaoDAO = $this->createMock(LeilaoDao::class);
+
+		// Imita o método "recuperarNaoFinalizados"
+		$leilaoDAO->method('recuperarNaoFinalizados')
+			->willReturn([$leilao1, $leilao2]);
+
+		// Imita o método "recuperarFinalizados"
+		$leilaoDAO->method('recuperarFinalizados')
+			->willReturn([$leilao1, $leilao2]);
+
+		// Espera que o método "atualiza" seja chamado uma vez
+		// para cada leilão
+		$leilaoDAO->expects($this->exactly(2))
+			->method('atualiza')
+			->withConsecutive(
+				[$leilao1],
+				[$leilao2]
+			);
 
 		// Encerra os leilões
 		$encerrador = new Encerrador($leilaoDAO);
 		$encerrador->encerra();
 
 		// Busca os leilões finalizados
-		$leiloesFinalizados = $leilaoDAO->recuperarFinalizados();
+		$leiloesFinalizados = [$leilao1, $leilao2];
 
 		// Testa se os leilões que foram finalizados estão corretos
 		self::assertCount(2, $leiloesFinalizados);
-		self::assertEquals(
-			'Fiat 147 0KM',
-			$leiloesFinalizados[0]->recuperarDescricao()
-		);
-		self::assertEquals(
-			'Variant 1972 0KM',
-			$leiloesFinalizados[1]->recuperarDescricao()
-		);
+		self::assertTrue($leiloesFinalizados[0]->estaFinalizado());
+		self::assertTrue($leiloesFinalizados[1]->estaFinalizado());
 	}
 }
