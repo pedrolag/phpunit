@@ -9,16 +9,24 @@ use PHPUnit\Framework\TestCase;
 
 class EncerradorTest extends TestCase
 {
-	public function testLeiloesComMaisDeUmaSemanaDevemSerEncerrados()
+	private $encerrador;
+
+	/** @var MockObject */
+	private $enviadorEmail;
+
+	private $leilao1;
+	private $leilao2;
+
+	protected function setUp(): void
 	{
 		// Cria o primeiro leilão
-		$leilao1 = new Leilao(
+		$this->leilao1 = new Leilao(
 			'Fiat 147 0KM',
 			new \DateTimeImmutable('8 days ago')
 		);
 
 		// Cria o segundo leilão
-		$leilao2 = new Leilao(
+		$this->leilao2 = new Leilao(
 			'Variant 1972 0KM',
 			new \DateTimeImmutable('10 days ago')
 		);
@@ -28,31 +36,49 @@ class EncerradorTest extends TestCase
 
 		// Imita o método "recuperarNaoFinalizados"
 		$leilaoDAO->method('recuperarNaoFinalizados')
-			->willReturn([$leilao1, $leilao2]);
+			->willReturn([$this->leilao1, $this->leilao2]);
 
 		// Imita o método "recuperarFinalizados"
 		$leilaoDAO->method('recuperarFinalizados')
-			->willReturn([$leilao1, $leilao2]);
+			->willReturn([$this->leilao1, $this->leilao2]);
 
 		// Espera que o método "atualiza" seja chamado uma vez
 		// para cada leilão
 		$leilaoDAO->expects($this->exactly(2))
 			->method('atualiza')
 			->withConsecutive(
-				[$leilao1],
-				[$leilao2]
+				[$this->leilao1],
+				[$this->leilao2]
 			);
 
+		// Cria um mock da classe EnviadorEmail
+		$this->enviadorEmail = $this->createMock(EnviadorEmail::class);
+		
 		// Encerra os leilões
-		$encerrador = new Encerrador($leilaoDAO);
-		$encerrador->encerra();
+		$this->encerrador = new Encerrador($leilaoDAO, $this->enviadorEmail);
+	}
+
+	public function testLeiloesComMaisDeUmaSemanaDevemSerEncerrados()
+	{
+		
+		$this->encerrador->encerra();
 
 		// Busca os leilões finalizados
-		$leiloesFinalizados = [$leilao1, $leilao2];
+		$leiloesFinalizados = [$this->leilao1, $this->leilao2];
 
 		// Testa se os leilões que foram finalizados estão corretos
 		self::assertCount(2, $leiloesFinalizados);
 		self::assertTrue($leiloesFinalizados[0]->estaFinalizado());
 		self::assertTrue($leiloesFinalizados[1]->estaFinalizado());
+	}
+
+	public function testDeveContinuarOProcessamentoAoEncontrarErroAoEnviarEmail()
+	{
+		$e = new \DomainException('Erro ao enviar e-mail');
+		$this->enviadorEmail->expects($this->exactly(2))
+			->method('notificarTerminoLeilao')
+			->willThrowException($e);
+			
+		$this->encerrador->encerra();
 	}
 }
