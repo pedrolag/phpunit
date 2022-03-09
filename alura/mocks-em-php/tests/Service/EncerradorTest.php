@@ -5,6 +5,7 @@ namespace Alura\Leilao\Tests\Service;
 use Alura\Leilao\Dao\Leilao as LeilaoDao;
 use Alura\Leilao\Model\Leilao;
 use Alura\Leilao\Service\Encerrador;
+use Alura\Leilao\Service\EnviadorEmail;
 use PHPUnit\Framework\TestCase;
 
 class EncerradorTest extends TestCase
