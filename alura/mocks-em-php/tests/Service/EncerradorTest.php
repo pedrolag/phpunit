@@ -82,4 +82,20 @@ class EncerradorTest extends TestCase
 			
 		$this->encerrador->encerra();
 	}
+
+	public function testSoDeveEnviarLeilaoPorEmailQuandoFinalizado()
+	{
+		$this->enviadorEmail->expects($this->exactly(2))
+			->method('notificarTerminoLeilao')
+
+			// Este método é utilizado quando é necessário fazer 
+			// alguma validação mais complexa, onde podemos montar
+			// a função de validação dos parâmetros que foram passados
+			// na chamada da função "notificarTerminoLeilao"
+			->willReturnCallback(function (Leilao $leilao) {
+				static::assertTrue($leilao->estaFinalizado());
+			});
+
+		$this->encerrador->encerra();
+	}
 }
