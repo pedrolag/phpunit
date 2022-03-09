@@ -1,4 +1,4 @@
-## Hey there! 🤙
+## Hello there! 🤙
 
 I've created this repository to better understand and practice **PHPUnit** ✨
 
